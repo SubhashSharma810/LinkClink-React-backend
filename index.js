@@ -1,13 +1,13 @@
 // LinkClink Backend Server
-import express, { json } from 'express';
-import cors from 'cors';
-import { Server } from 'ws';
+const express = require('express');
+const cors = require('cors');
+const WebSocket = require('ws');
 
 // Import routes
-import formatRoutes from './routes/formats';
-import downloadHandler from './routes/download';
-import imageRoute from './routes/image';
-import { http } from 'get-uri/dist/http';
+const formatRoutes = require('./routes/formats');
+const downloadHandler = require('./routes/download');
+const imageRoute = require('./routes/image');
+const http = require('http'); // ✅ Node.js built-in module
 require('dotenv').config();
 
 
@@ -15,7 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(json());
+app.use(express.json());
 
 // REST API routes
 app.use('/formats', formatRoutes);
@@ -27,7 +27,7 @@ app.use('/image', imageRoute);
 const server = http.createServer(app);
 
 // create WebSocket server on the same HTTP server
-const wss = new Server({ server });
+const wss = new WebSocket.Server({ server });
 
 // Start WebSocket + HTTP server
 server.listen(PORT, () => {
