@@ -31,8 +31,10 @@ RUN apt-get update && apt-get install -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp globally via pipx
-RUN pipx ensurepath && pipx install yt-dlp
+# Install yt-dlp globally via pipx and ensure it's in PATH
+RUN pipx ensurepath && \
+    pipx install yt-dlp && \
+    ln -s /root/.local/bin/yt-dlp /usr/local/bin/yt-dlp
 
 # Install Chrome manually (stable)
 RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux-keyring.gpg && \
