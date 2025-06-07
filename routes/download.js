@@ -1,10 +1,7 @@
-const WebSocket = require('ws');
 const downloadVideo = require('../services/downloadVideo');
 
-function downloadHandler() {
-  const wss = new WebSocket.Server({ port: 5001 });
-
-  console.log('WebSocket running at ws://localhost:5001');
+function downloadHandler(wss) {
+  console.log('WebSocket server initialized');
 
   wss.on('connection', (ws) => {
     console.log('WebSocket client connected');
