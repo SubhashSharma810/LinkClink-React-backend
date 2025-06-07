@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer-core');
+require('dotenv').config();
 
 const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome';
 

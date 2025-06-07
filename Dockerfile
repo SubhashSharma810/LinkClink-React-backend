@@ -1,31 +1,58 @@
-# 1. Use Node.js base image
+# Use Node.js base image
 FROM node:20
 
-# 2. Set working directory
-WORKDIR /app
+# Install pipx + Python + yt-dlp + Chrome
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    pipx \
+    python3-venv \
+    curl \
+    unzip \
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgdk-pixbuf2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    --no-install-recommends \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
-# 3. Copy backend files
-COPY . .
+# Install yt-dlp globally via pipx
+RUN pipx ensurepath && pipx install yt-dlp
 
-# 4. Install dependencies
-RUN npm install
+# Install Chrome manually (stable)
+RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux-keyring.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && apt-get install -y google-chrome-stable
 
-# 5. Install yt-dlp (via Python)
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip ffmpeg wget gnupg ca-certificates && \
-    pip3 install yt-dlp
-
-# 6. Install full Chrome for Puppeteer
-RUN apt-get install -y curl unzip && \
-    curl -O https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt install -y ./google-chrome-stable_current_amd64.deb && \
-    rm google-chrome-stable_current_amd64.deb
-
-# 7. Let Puppeteer find Chrome
+# Set Puppeteer executable path in environment
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 
-# 8. Expose backend port
+# Create app directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Install Node.js dependencies
+RUN npm install
+
+# Expose port
 EXPOSE 5000
 
-# 9. Start your server
+# Start the app
 CMD ["node", "index.js"]
