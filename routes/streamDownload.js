@@ -30,7 +30,6 @@ router.post('/', async (req, res) => {
     });
 
     ytdlp.stdout.once('data', () => {
-      // Set headers only once, after stream starts
       if (!sentHeaders) {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.${extension}"`);
         res.setHeader('Content-Type', 'application/octet-stream');
@@ -59,12 +58,18 @@ router.post('/', async (req, res) => {
 });
 
 async function fallbackWithPuppeteer(url, res) {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    // Navigate with timeout 15 sec
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    // Wait max 10 sec for video tag
     await page.waitForSelector('video', { timeout: 10000 });
 
     const videoSrc = await page.evaluate(() => {
@@ -84,6 +89,18 @@ async function fallbackWithPuppeteer(url, res) {
 
     const fallbackStream = spawn('curl', ['-L', videoSrc]);
 
+    let timeoutId = setTimeout(() => {
+      console.error('Fallback curl timed out');
+      fallbackStream.kill();
+      if (!res.headersSent) {
+        res.status(504).json({ error: 'Fallback curl timed out' });
+      }
+    }, 20000); // 20 seconds timeout
+
+    fallbackStream.stdout.once('data', () => {
+      clearTimeout(timeoutId);
+    });
+
     if (!res.headersSent) {
       res.setHeader('Content-Disposition', `attachment; filename="fallback.mp4"`);
       res.setHeader('Content-Type', 'application/octet-stream');
@@ -94,13 +111,21 @@ async function fallbackWithPuppeteer(url, res) {
     fallbackStream.on('error', (err) => {
       console.error('Fallback curl failed:', err);
       if (!res.headersSent) {
-        return res.status(500).json({ error: 'Fallback download failed' });
+        res.status(500).json({ error: 'Fallback download failed' });
+      }
+    });
+
+    fallbackStream.on('close', (code) => {
+      clearTimeout(timeoutId);
+      if (code !== 0 && !res.headersSent) {
+        res.status(500).json({ error: `Fallback curl exited with code ${code}` });
       }
     });
   } catch (error) {
+    if (browser) await browser.close();
     console.error('Puppeteer fallback failed:', error);
     if (!res.headersSent) {
-      return res.status(500).json({ error: 'Puppeteer fallback failed' });
+      res.status(500).json({ error: 'Puppeteer fallback failed' });
     }
   }
 }
