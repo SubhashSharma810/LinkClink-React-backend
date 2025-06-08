@@ -10,7 +10,7 @@ require('dotenv').config();
 const formatRoutes = require('./routes/formats');
 const downloadHandler = require('./routes/download');
 const imageRoute = require('./routes/image');
-const { router: streamDownloadRoute } = require('./routes/streamDownload'); // ✅ Fix here
+const streamDownloadRoute = require('./routes/streamDownload');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
