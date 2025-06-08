@@ -1,3 +1,4 @@
+// routes/streamDownload.js
 const express = require('express');
 const router = express.Router();
 const { spawn } = require('child_process');
@@ -13,6 +14,9 @@ router.post('/', async (req, res) => {
   const finalFormat = format_id === 'fallback' ? 'best' : format_id;
   const args = ['-f', finalFormat, '--no-playlist', '-o', '-', url];
 
+  console.log('Received /stream-download request:', { url, format_id });
+  console.log('Spawning yt-dlp with args:', args);
+
   try {
     const ytdlp = spawn('yt-dlp', args);
 
@@ -22,11 +26,15 @@ router.post('/', async (req, res) => {
 
     ytdlp.stderr.on('data', (data) => {
       const msg = data.toString();
+      // Extract filename and extension from yt-dlp logs
       const match = msg.match(/Destination: (.+)\.(\w+)/);
       if (match) {
         filename = match[1].replace(/[^a-zA-Z0-9_-]/g, '_');
         extension = match[2];
+        console.log(`Detected filename: ${filename}.${extension}`);
       }
+      // Optional: log yt-dlp stderr for debugging
+      // console.error('yt-dlp stderr:', msg);
     });
 
     ytdlp.stdout.once('data', () => {
@@ -34,25 +42,28 @@ router.post('/', async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.${extension}"`);
         res.setHeader('Content-Type', 'application/octet-stream');
         sentHeaders = true;
+        console.log('Response headers sent for download');
       }
     });
 
     ytdlp.stdout.pipe(res);
 
     ytdlp.on('error', (err) => {
-      console.error('yt-dlp failed:', err);
+      console.error('yt-dlp process error:', err);
       if (!res.headersSent) {
-        return res.status(500).json({ error: 'yt-dlp execution failed' });
+        res.status(500).json({ error: 'yt-dlp execution failed' });
       }
     });
 
     ytdlp.on('close', (code) => {
+      console.log(`yt-dlp exited with code ${code}`);
       if (code !== 0 && !res.headersSent) {
+        console.log('yt-dlp failed, falling back to Puppeteer');
         fallbackWithPuppeteer(url, res);
       }
     });
   } catch (err) {
-    console.error('yt-dlp crashed, fallback to Puppeteer');
+    console.error('yt-dlp crashed, fallback to Puppeteer', err);
     fallbackWithPuppeteer(url, res);
   }
 });
@@ -60,6 +71,7 @@ router.post('/', async (req, res) => {
 async function fallbackWithPuppeteer(url, res) {
   let browser;
   try {
+    console.log('Starting Puppeteer fallback for URL:', url);
     browser = await puppeteer.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -80,12 +92,14 @@ async function fallbackWithPuppeteer(url, res) {
     await browser.close();
 
     if (!videoSrc) {
+      console.error('Video URL not found in Puppeteer fallback');
       if (!res.headersSent) {
         return res.status(404).json({ error: 'Video URL not found in fallback' });
-      } else {
-        return;
       }
+      return;
     }
+
+    console.log('Video URL found by Puppeteer fallback:', videoSrc);
 
     const fallbackStream = spawn('curl', ['-L', videoSrc]);
 
@@ -117,6 +131,7 @@ async function fallbackWithPuppeteer(url, res) {
 
     fallbackStream.on('close', (code) => {
       clearTimeout(timeoutId);
+      console.log(`Fallback curl exited with code ${code}`);
       if (code !== 0 && !res.headersSent) {
         res.status(500).json({ error: `Fallback curl exited with code ${code}` });
       }
