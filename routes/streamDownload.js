@@ -35,4 +35,4 @@ router.post('/stream-download', (req, res) => {
   ytdlp.stdout.pipe(res);
 });
 
-module.exports = { router };
+module.exports = router;
