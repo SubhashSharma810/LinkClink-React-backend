@@ -24,12 +24,7 @@ function downloadVideo(url, format_id, ws) {
     'redtube.com', 'youjizz.com', 'xhamster.com'
   ];
 
-  const needsImpersonate = impersonateSites.some(site => url.includes(site));
   const args = [];
-
-  if (needsImpersonate) {
-    args.push('--impersonate', 'chrome');
-  }
 
   if (format_id === 'audio') {
     args.push(
