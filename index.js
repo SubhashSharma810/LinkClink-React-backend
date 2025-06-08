@@ -9,6 +9,8 @@ const downloadHandler = require('./routes/download');
 const imageRoute = require('./routes/image');
 const http = require('http'); // ✅ Node.js built-in module
 require('dotenv').config();
+const streamDownloadRoute = require('./routes/streamDownload');
+
 
 
 const app = express();
@@ -22,6 +24,8 @@ app.use('/formats', formatRoutes);
 
 // Serve image files from the downloads directory
 app.use('/image', imageRoute);
+
+app.use('/stream-download', streamDownloadRoute);
 
 // create HTTP server and attach Express app
 const server = http.createServer(app);
