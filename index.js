@@ -1,17 +1,16 @@
 // LinkClink Backend Server
+
 const express = require('express');
 const cors = require('cors');
 const WebSocket = require('ws');
+const http = require('http');
+require('dotenv').config();
 
 // Import routes
 const formatRoutes = require('./routes/formats');
 const downloadHandler = require('./routes/download');
 const imageRoute = require('./routes/image');
-const http = require('http'); // ✅ Node.js built-in module
-require('dotenv').config();
-const streamDownloadRoute = require('./routes/streamDownload');
-
-
+const { router: streamDownloadRoute } = require('./routes/streamDownload'); // ✅ Fix here
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,23 +20,20 @@ app.use(express.json());
 
 // REST API routes
 app.use('/formats', formatRoutes);
-
-// Serve image files from the downloads directory
 app.use('/image', imageRoute);
+app.use('/stream-download', streamDownloadRoute); // ✅ Proper mount
 
-app.use('/stream-download', streamDownloadRoute);
-
-// create HTTP server and attach Express app
+// Create HTTP server and attach Express app
 const server = http.createServer(app);
 
-// create WebSocket server on the same HTTP server
+// Create WebSocket server on the same HTTP server
 const wss = new WebSocket.Server({ server });
 
-// Start WebSocket + HTTP server
+// Start HTTP + WebSocket server
 server.listen(PORT, () => {
   console.log(`HTTP server running on http://localhost:${PORT}`);
   console.log(`WebSocket server running at ws://localhost:${PORT}`);
 });
 
-// Start WebSocket download server
+// Start WebSocket-based download handling
 downloadHandler(wss);
